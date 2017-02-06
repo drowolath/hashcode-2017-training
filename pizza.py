@@ -27,6 +27,18 @@ class Position(object):
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
+    def __gt__(self, other):
+        return (
+            self.row > other.row or
+            self.row == other.row and self.column > other.column
+            )
+
+    def __lt__(self, other):
+        return (
+            self.row < other.row or
+            self.row == other.row and self.column < other.column
+            )
+
 
 class Ingredient(object):
     """An ingredient has a count in a pizza, and at least one position"""
