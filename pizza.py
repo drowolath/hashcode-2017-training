@@ -11,11 +11,13 @@ def gcd(a, b):
 
 
 class Position(object):
+    """A position is recognized by its row and column indices"""
     def __init__(self, row, column):
         self.row = row
         self.column = column
 
     def neighbours(self, R, C):
+        """a position has at most 4 adjacent cells; we don't count diagonals"""
         neighbours = []
         if self.row+1 < R:
             neighbours.append(Position(self.row+1, self.column))
@@ -45,6 +47,8 @@ class Ingredient(object):
 
 
 class Pizza(object):
+    """A pizza is represented by a RxC rectangle, and contains
+    tomatoes and mushrooms"""
     def __init__(self, **kwargs):
         if kwargs.get('data'):
             with open(kwargs['data']) as infile:
@@ -81,6 +85,10 @@ class Pizza(object):
             )
 
     def slices(self):
+        """A slice contains at least 1 tomato and 1 mushroom.
+        This function gives all the slices containing exactly
+        1 mushroom and 1 tomato. It starts from the most rare
+        ingredient"""
         a = [
             i for i in [self.tomatoes, self.mushrooms]
             if i.count == min(self.tomatoes.count, self.mushrooms.count)
