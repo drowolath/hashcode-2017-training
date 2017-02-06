@@ -2,14 +2,6 @@
 # encoding: utf-8
 
 
-def gcd(a, b):
-    if b == 0:
-        return a
-    else:
-        r = a % b
-        return gcd(b, r)
-
-
 class Position(object):
     """A position is recognized by its row and column indices"""
     def __init__(self, row, column):
