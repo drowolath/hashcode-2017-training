@@ -40,9 +40,13 @@ File format
 The file consists of:
 
  * one line containing the following natural numbers separated by single spaces:
+
    * R (1 ≤ R ≤ 1000) is the number of rows,
+
    * C (1 ≤ C ≤ 1000) is the number of columns,
+
    * L (1 ≤ L ≤ 1000) is the minimum number of each ingredient cells in a slice,
+
    * H (1 ≤ H ≤ 1000) is the maximum total number of cells of a slice
 
  * R lines describing the rows of the pizza (one after another). Each of these lines contains C
@@ -56,7 +60,9 @@ File format
 
 The file must consist of:
   * one line containing a single natural number S (0 ≤ S ≤ R × C) , representing the total number of slices to be cut,
+
   * U lines describing the slices. Each of these lines must contain the following natural numbers separated by single spaces:
+
     * r1 , c1 , r2 , c2 (0 ≤ r1 ,r2 < R, 0 ≤ c1, c2 < C) describe a slice of pizza delimited by the rows r1 and r2 and the columns c1 and c2 , including the cells of the delimiting rows and columns. The rows (r1 and r2) can be given in any order. The columns (c1 and c2) can be given in any order too.
 
 Validation
@@ -64,9 +70,13 @@ Validation
 
 For the solution to be accepted:
   * the format of the file must match the description above,
+
   * each cell of the pizza must be included in at most one slice,
+
   * each slice must contain at least L cells of mushroom,
+
   * each slice must contain at least L cells of tomato,
+
   * total area of each slice must be at most H
     
 Scoring
