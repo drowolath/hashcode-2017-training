@@ -64,6 +64,14 @@ class Cell(object):
             self.row == other.row and self.column < other.column
             )
 
+    def __add__(self, other):
+        return self.__class__(self.row+other.row, self.column+other.column)
+
+    def __sub__(self, other):
+        if self.row-other.row < 0 or self.column-other.column < 0:
+            raise StopIteration("This went too far. Your cell is off any grid")
+        return self.__class__(self.row-other.row, self.column-other.column)
+
 
 class Ingredient(object):
     """An ingredient has a count in a Pizza, and occupies cells (or not?)"""
@@ -151,5 +159,56 @@ class Pizza(object):
         we should add to the existing slices to maximize them
         (e.g. grouping valid slices to a maximum)
         """
-        pass
+        slices = [
+            j for i in self.elementary_slices for j in i
+            ]
+        limit = gcd(self.rows*self.columns, self.H)
+        result = []
+        for upper_left, lower_right in self.elementary_slices:
+            r = abs(lower_right.row - upper_left.row) + 1
+            c = abs(lower_right.column - upper_left.column) + 1
+            # try to add more rows (up: Cell(1, 0), down: Cell(-1, 0))
+            while r < limit:
+                try:
+                    bar = lower_right + Cell(1, 0)
+                    if bar.row == self.rows or bar in slices:
+                        raise StopIteration
+                    else:
+                        r += 1
+                        lower_right = bar
+                except StopIteration:
+                    try:
+                        bar = upper_left + Cell(-1, 0)
+                        if bar in slices:
+                            raise StopIteration
+                    except StopIteration:
+                        break
+                    else:
+                        r += 1
+                        upper_left = bar
+                        slices.append(bar)
+            # now size up to max by adding more columns
+            while r*c < self.H:
+                try:
+                    bar = lower_right + Cell(0, 1)
+                    if bar.column == self.columns or bar in slices:
+                        raise StopIteration
+                    else:
+                        c += 1
+                        lower_right = bar
+                except StopIteration:
+                    try:
+                        bar = upper_left + Cell(0, -1)
+                        if bar in slices:
+                            raise StopIteration
+                    except StopIteration:
+                        break
+                    else:
+                        c += 1
+                        upper_left = bar
+                        slices.append(bar)
+            result.append([upper_left, lower_right])
+        # At this point, all slices are valid.
+        # We still need to regroup small ones up to the maximum
+        return result
 # EOF
