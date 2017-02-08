@@ -7,21 +7,51 @@ maximizing the total number of cells in all slices
 """
 
 
-def gcd(a, b):
-    """Calculates the greater common divisor of a and b.
-    This will be helpful to get the maximum size possible
-    of a slice.
-    Given the size of a pizza (RxC),
-    if the maximum size of slice is rxc=H,
-    then, a slice is either
-     * r = gcd((RxC), H) rows and c = H/gcd((RxC), H) columns,
-     * r = H/gcd((RxC), H) rows and c = H/ columns
-    """
-    if b == 0:
-        return a
-    else:
-        r = a % b
-        return gcd(b, r)
+class Slice(object):
+    def __init__(self, upper_left, lower_right, pizza=None):
+        self.upper_left = upper_left
+        self.lower_right = lower_right
+        self.pizza = pizza
+
+    def __repr__(self):
+        msg = ('<Slice ({0}, {1})'
+               ' T={2} M={3}>').format(
+                   self.upper_left,
+                   self.lower_right,
+                   self.tomatoes.count,
+                   self.mushrooms.count
+                   )
+        return msg
+
+    @property
+    def cells(self):
+        result = []
+        for r in range(self.upper_left.row, self.lower_right.row+1):
+            for c in range(self.upper_left.column, self.lower_right.column+1):
+                result.append(Cell(r,c))
+        return result
+
+    @property
+    def tomatoes(self):
+        cells = []
+        count = 0
+        if self.pizza:
+            for cell in self.cells:
+                if cell in self.pizza.tomatoes.cells:
+                    count += 1
+                    cells.append(cell)
+        return Ingredient(count, cells)
+
+    @property
+    def mushrooms(self):
+        cells = []
+        count = 0
+        if self.pizza:
+            for cell in self.cells:
+                if cell in self.pizza.mushrooms.cells:
+                    count += 1
+                    cells.append(cell)
+        return Ingredient(count, cells)
 
 
 class Cell(object):
@@ -122,93 +152,58 @@ class Pizza(object):
             )
 
     @property
-    def elementary_slices(self):
-        """An elementary slice in a pizza contains at least 1 of each
-        ingredient"""
+    def cells(self):
         result = []
-        if not self.tomatoes.count or not self.mushrooms.count:
-            # the pizza contains only one ingredient;
-            # every cell is an elementary slice
-            for i in self.rows:
-                for j in self.columns:
-                    result.append([Cell(i, j), Cell(i, j)])
-        else:
-            a = [
-                i for i in [self.tomatoes, self.mushrooms]
-                if i.count == min(self.tomatoes.count, self.mushrooms.count)
-                ][0]
-            if a == self.tomatoes:
-                b = self.mushrooms
-            else:
-                b = self.tomatoes
-            result = []
-            seen = []
-            for i in a.cells:
-                for j in i.neighbours(self.rows, self.columns):
-                    if j in b.cells and j not in seen:
-                        result.append(sorted([i, j]))
-                        seen.append(j)
-                        break
+        for r in range(self.rows):
+            for c in range(self.columns):
+                result.append(Cell(r, c))
         return result
 
-    def slices(self):
-        """We should recursively expand each elementary slice
-        to a maximum by including only free cells.
-        At the very end, when we have only valid slices,
-        we will use the gcd() to calculate how many column or row
-        we should add to the existing slices to maximize them
-        (e.g. grouping valid slices to a maximum)
-        """
-        slices = [
-            j for i in self.elementary_slices for j in i
-            ]
-        limit = gcd(self.rows*self.columns, self.H)
+    @property
+    def slices_sizes(self):
+        """Given the surface of the biggest slices possible in the pizza,
+        and the minimum number of each ingredient in a slice,
+        we determine the possible numbers of rows and columns any valid slice
+        need"""
+        import math
         result = []
-        for upper_left, lower_right in self.elementary_slices:
-            r = abs(lower_right.row - upper_left.row) + 1
-            c = abs(lower_right.column - upper_left.column) + 1
-            # try to add more rows (up: Cell(1, 0), down: Cell(-1, 0))
-            while r < limit:
-                try:
-                    bar = lower_right + Cell(1, 0)
-                    if bar.row == self.rows or bar in slices:
-                        raise StopIteration
-                    else:
-                        r += 1
-                        lower_right = bar
-                except StopIteration:
-                    try:
-                        bar = upper_left + Cell(-1, 0)
-                        if bar in slices:
-                            raise StopIteration
-                    except StopIteration:
-                        break
-                    else:
-                        r += 1
-                        upper_left = bar
-                        slices.append(bar)
-            # now size up to max by adding more columns
-            while r*c < self.H:
-                try:
-                    bar = lower_right + Cell(0, 1)
-                    if bar.column == self.columns or bar in slices:
-                        raise StopIteration
-                    else:
-                        c += 1
-                        lower_right = bar
-                except StopIteration:
-                    try:
-                        bar = upper_left + Cell(0, -1)
-                        if bar in slices:
-                            raise StopIteration
-                    except StopIteration:
-                        break
-                    else:
-                        c += 1
-                        upper_left = bar
-                        slices.append(bar)
-            result.append([upper_left, lower_right])
-        # At this point, all slices are valid.
-        # We still need to regroup small ones up to the maximum
-        return result
+        for h in reversed(range(2*self.L, self.H+1)):
+            bar = []
+            i = 1
+            while i <= math.sqrt(h):  # we list all the divisors of self.H
+                if h % i == 0:
+                    if (i, h/i) not in bar:
+                        bar.append((i, h/i))
+                    if (h/i, i) not in bar:
+                        bar.append((h/i, i))
+                i += 1
+            bar = sorted(bar, key=lambda x: x[0], reverse=True)
+            bar = filter(
+                lambda x: x[0]<=self.rows and x[1]<=self.columns,
+                bar
+                )
+            for element in bar:
+                result.append(element)
+        return [[int(r), int(c)] for r, c in result]
+
+    def slice(self, start, rows, columns):
+        """slice pizza from start according to
+        a number of rows and number of columns
+        """
+        upper_left = start
+        lower_right = upper_left + Cell(rows-1, columns-1)
+        while lower_right in self.cells:            
+            # check surface covered is a valid slice
+            s = Slice(upper_left, lower_right, self)
+            t = s.tomatoes.count
+            m = s.mushrooms.count
+            if t >= self.L and m >= self.L and t+m <= self.H:
+                # slice is valid, store it
+                print(s)
+
+            if self.rows-lower_right.row-1 >= rows:
+                upper_left += Cell(lower_right.row+1, upper_left.column)
+            else:
+                upper_left = Cell(upper_left.row, lower_right.column+1)
+            lower_right = upper_left + Cell(rows-1, columns-1)
 # EOF
