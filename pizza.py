@@ -28,7 +28,7 @@ class Slice(object):
         result = []
         for r in range(self.upper_left.row, self.lower_right.row+1):
             for c in range(self.upper_left.column, self.lower_right.column+1):
-                result.append(Cell(r,c))
+                result.append(Cell(r ,c))
         return result
 
     @property
@@ -179,7 +179,7 @@ class Pizza(object):
                 i += 1
             bar = sorted(bar, key=lambda x: x[0], reverse=True)
             bar = filter(
-                lambda x: x[0]<=self.rows and x[1]<=self.columns,
+                lambda x: x[0] <= self.rows and x[1] <= self.columns,
                 bar
                 )
             for element in bar:
@@ -192,7 +192,7 @@ class Pizza(object):
         """
         upper_left = start
         lower_right = upper_left + Cell(rows-1, columns-1)
-        while lower_right in self.cells:            
+        while lower_right in self.cells:
             # check surface covered is a valid slice
             s = Slice(upper_left, lower_right, self)
             t = s.tomatoes.count
