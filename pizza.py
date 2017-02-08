@@ -6,6 +6,8 @@ Simple library to cut correct slices out of a pizza,
 maximizing the total number of cells in all slices
 """
 
+import collections
+import math
 
 class Slice(object):
     def __init__(self, upper_left, lower_right, pizza=None):
@@ -52,6 +54,13 @@ class Slice(object):
                     count += 1
                     cells.append(cell)
         return Ingredient(count, cells)
+
+    def overlaps(self, other):
+        """Checks if slice has a cell in common with other"""
+        for cell in self.cells:
+            if cell in other.cells:
+                return True
+        return False
 
 
 class Cell(object):
@@ -165,8 +174,7 @@ class Pizza(object):
         and the minimum number of each ingredient in a slice,
         we determine the possible numbers of rows and columns any valid slice
         need"""
-        import math
-        result = []
+        result = collections.OrderedDict()
         for h in reversed(range(2*self.L, self.H+1)):
             bar = []
             i = 1
@@ -182,9 +190,8 @@ class Pizza(object):
                 lambda x: x[0] <= self.rows and x[1] <= self.columns,
                 bar
                 )
-            for element in bar:
-                result.append(element)
-        return [[int(r), int(c)] for r, c in result]
+            result[h] = [[int(r), int(c)] for r, c in bar]
+        return result
 
     def slice(self, start, rows, columns):
         """slice pizza from start according to
@@ -192,18 +199,24 @@ class Pizza(object):
         """
         upper_left = start
         lower_right = upper_left + Cell(rows-1, columns-1)
+        result = []
+        s = Slice(upper_left, lower_right, self)
         while lower_right in self.cells:
-            # check surface covered is a valid slice
-            s = Slice(upper_left, lower_right, self)
+            # check if surface covered is a valid slice
             t = s.tomatoes.count
             m = s.mushrooms.count
             if t >= self.L and m >= self.L and t+m <= self.H:
                 # slice is valid, store it
-                print(s)
+                result.append(s)
 
             if self.rows-lower_right.row-1 >= rows:
-                upper_left += Cell(lower_right.row+1, upper_left.column)
+                upper_left += Cell(lower_right.row+1, 0)
             else:
-                upper_left = Cell(upper_left.row, lower_right.column+1)
-            lower_right = upper_left + Cell(rows-1, columns-1)
+                upper_left = Cell(start.row, lower_right.column+1)
+            if upper_left not in self.cells:
+                break
+            else:
+                lower_right = upper_left + Cell(rows-1, columns-1)
+                s = Slice(upper_left, lower_right, self)
+        return result
 # EOF
