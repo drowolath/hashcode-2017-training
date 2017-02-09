@@ -9,6 +9,7 @@ maximizing the total number of cells in all slices
 import collections
 import math
 
+
 class Slice(object):
     def __init__(self, upper_left, lower_right, pizza=None):
         self.upper_left = upper_left
