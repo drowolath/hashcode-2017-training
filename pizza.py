@@ -58,10 +58,13 @@ class Slice(object):
 
     def overlaps(self, other):
         """Checks if slice has a cell in common with other"""
+        if not other or not hasattr(other, 'cells'):
+            return False
         for cell in self.cells:
             if cell in other.cells:
                 return True
-        return False
+        else:
+            return False
 
 
 class Cell(object):
@@ -219,5 +222,32 @@ class Pizza(object):
             else:
                 lower_right = upper_left + Cell(rows-1, columns-1)
                 s = Slice(upper_left, lower_right, self)
+        return result
+
+    def getslices(self):
+        """Going through all possible dimensions of a valid slice,
+        starting from the biggest, we keep non overlapping slices"""
+        result = [None]
+        for key, values in self.slices_sizes.items():
+            foo = []
+            for rows, columns in values:
+                bar = self.slice(Cell(0, 0), rows, columns)
+                count = []
+                for i in bar:
+                    for j in result:
+                        if i.overlaps(j):
+                            break
+                    else:
+                        count.append(i)
+                # we keep the valid slices that don't overlap
+                # with the previous valid ones
+                if len(count) > len(foo):
+                    foo = count
+                    # for a given size we keep the slicing
+                    # that covers most of the remaining parts
+            if result == [None]:
+                result = foo
+            else:
+                result += foo
         return result
 # EOF
