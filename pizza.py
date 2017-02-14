@@ -32,11 +32,9 @@ class Slice(object):
 
     @property
     def cells(self):
-        result = []
         for r in range(self.upper_left.row, self.lower_right.row+1):
             for c in range(self.upper_left.column, self.lower_right.column+1):
-                result.append(Cell(r, c))
-        return result
+                yield Cell(r, c)
 
     @property
     def tomatoes(self):
@@ -254,5 +252,12 @@ class Pizza(object):
                 result = foo
             else:
                 result += foo
+        # check if there is any remaining pizza
+        bar = [cell for slice in result for cell in slice.cells]
+        if filter(lambda x: x not in bar, self.cells):
+            # check if there is any slice that can be reduced
+            # reduce it and then re-slice the remaining parts
+            # accordingly
+            pass
         return result
 # EOF
