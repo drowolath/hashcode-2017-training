@@ -26,6 +26,10 @@ class Slice(object):
                    )
         return msg
 
+    def __contains__(self, item):
+        """checking if a cell is part of the slice"""
+        return item in self.cells
+
     @property
     def cells(self):
         result = []
@@ -164,13 +168,14 @@ class Pizza(object):
             t=self.tomatoes.count, m=self.mushrooms.count
             )
 
+    def __contains__(self, item):
+        return item in self.cells
+
     @property
     def cells(self):
-        result = []
         for r in range(self.rows):
             for c in range(self.columns):
-                result.append(Cell(r, c))
-        return result
+                yield Cell(r, c)
 
     @property
     def slices_sizes(self):
@@ -205,7 +210,7 @@ class Pizza(object):
         lower_right = upper_left + Cell(rows-1, columns-1)
         result = []
         s = Slice(upper_left, lower_right, self)
-        while lower_right in self.cells:
+        while lower_right in self:
             # check if surface covered is a valid slice
             t = s.tomatoes.count
             m = s.mushrooms.count
@@ -217,7 +222,7 @@ class Pizza(object):
                 upper_left += Cell(lower_right.row+1, 0)
             else:
                 upper_left = Cell(start.row, lower_right.column+1)
-            if upper_left not in self.cells:
+            if upper_left not in self:
                 break
             else:
                 lower_right = upper_left + Cell(rows-1, columns-1)

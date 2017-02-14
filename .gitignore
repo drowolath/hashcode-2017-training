@@ -2,3 +2,4 @@
 \#*
 *.py[cod]
 *_flymake.py
+__pycache__
