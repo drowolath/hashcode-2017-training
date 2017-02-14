@@ -15,6 +15,8 @@ class Slice(object):
         self.upper_left = upper_left
         self.lower_right = lower_right
         self.pizza = pizza
+        self.rows = self.lower_right.row - self.upper_left.row + 1
+        self.columns = self.lower_right.column - self.upper_left.column + 1
 
     def __repr__(self):
         msg = ('<Slice ({0}, {1})'
@@ -57,6 +59,13 @@ class Slice(object):
                     count += 1
                     cells.append(cell)
         return Ingredient(count, cells)
+
+    @property
+    def is_divisible(self):
+        """detects if a slice is divisible"""
+        t = self.tomatoes.count
+        m = self.mushrooms.count
+        return (t >= 2*self.pizza.L and m >= 2*self.pizza.L)
 
     def overlaps(self, other):
         """Checks if slice has a cell in common with other"""
@@ -175,14 +184,14 @@ class Pizza(object):
             for c in range(self.columns):
                 yield Cell(r, c)
 
-    @property
-    def slices_sizes(self):
-        """Given the surface of the biggest slices possible in the pizza,
+    @staticmethod
+    def slices_sizes(R, C, L, H):
+        """Given the surface of the biggest slices possible in a pizza,
         and the minimum number of each ingredient in a slice,
         we determine the possible numbers of rows and columns any valid slice
         need"""
         result = collections.OrderedDict()
-        for h in reversed(range(2*self.L, self.H+1)):
+        for h in reversed(range(2*L, H+1)):
             bar = []
             i = 1
             while i <= math.sqrt(h):  # we list all the divisors of self.H
@@ -194,7 +203,7 @@ class Pizza(object):
                 i += 1
             bar = sorted(bar, key=lambda x: x[0], reverse=True)
             bar = filter(
-                lambda x: x[0] <= self.rows and x[1] <= self.columns,
+                lambda x: x[0] <= R and x[1] <= C,
                 bar
                 )
             result[h] = [[int(r), int(c)] for r, c in bar]
@@ -231,7 +240,10 @@ class Pizza(object):
         """Going through all possible dimensions of a valid slice,
         starting from the biggest, we keep non overlapping slices"""
         result = [None]
-        for key, values in self.slices_sizes.items():
+        slices_sizes = self.slices_sizes(
+            self.rows, self.columns, self.L, self.H
+            )
+        for key, values in slices_sizes.items():
             foo = []
             for rows, columns in values:
                 bar = self.slice(Cell(0, 0), rows, columns)
@@ -254,10 +266,27 @@ class Pizza(object):
                 result += foo
         # check if there is any remaining pizza
         bar = [cell for slice in result for cell in slice.cells]
-        if filter(lambda x: x not in bar, self.cells):
+        remaining_cells = sorted(
+            list(filter(lambda x: x not in bar, self.cells))
+            )
+        if remaining_cells:
             # check if there is any slice that can be reduced
             # reduce it and then re-slice the remaining parts
             # accordingly
-            pass
+            for slice in result:
+                if slice.is_divisible:
+                    print('found a divisible slice')
+                    surface = len(list(slice.cells))
+                    p = Pizza(
+                        rows=slice.rows,
+                        columns=slice.columns,
+                        H=surface-1,
+                        L=self.L,
+                        tomatoes=Ingredient(
+                            len(slice.tomatoes.cells), slice.tomatoes.cells),
+                        mushrooms=Ingredient(
+                            len(slice.mushrooms.cells), slice.mushrooms.cells)
+                        )
+                    print(p)
         return result
 # EOF
