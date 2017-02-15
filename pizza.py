@@ -7,172 +7,116 @@ maximizing the total number of cells in all slices
 """
 
 import collections
+import itertools
 import math
 
+__all__ = [
+    'Cell',
+    'Pizza',
+    'Slice'
+    ]
 
-class Slice(object):
-    def __init__(self, upper_left, lower_right, pizza=None):
-        self.upper_left = upper_left
-        self.lower_right = lower_right
-        self.pizza = pizza
-        self.rows = self.lower_right.row - self.upper_left.row + 1
-        self.columns = self.lower_right.column - self.upper_left.column + 1
 
-    def __repr__(self):
-        msg = ('<Slice ({0}, {1})'
-               ' T={2} M={3}>').format(
-                   self.upper_left,
-                   self.lower_right,
-                   self.tomatoes.count,
-                   self.mushrooms.count
-                   )
-        return msg
-
-    def __contains__(self, item):
-        """checking if a cell is part of the slice"""
-        return item in self.cells
-
-    @property
-    def cells(self):
-        for r in range(self.upper_left.row, self.lower_right.row+1):
-            for c in range(self.upper_left.column, self.lower_right.column+1):
-                yield Cell(r, c)
-
-    @property
-    def tomatoes(self):
-        cells = []
-        count = 0
-        if self.pizza:
-            for cell in self.cells:
-                if cell in self.pizza.tomatoes.cells:
-                    count += 1
-                    cells.append(cell)
-        return Ingredient(count, cells)
-
-    @property
-    def mushrooms(self):
-        cells = []
-        count = 0
-        if self.pizza:
-            for cell in self.cells:
-                if cell in self.pizza.mushrooms.cells:
-                    count += 1
-                    cells.append(cell)
-        return Ingredient(count, cells)
-
-    @property
-    def is_divisible(self):
-        """detects if a slice is divisible"""
-        t = self.tomatoes.count
-        m = self.mushrooms.count
-        return (t >= 2*self.pizza.L and m >= 2*self.pizza.L)
-
-    def overlaps(self, other):
-        """Checks if slice has a cell in common with other"""
-        if not other or not hasattr(other, 'cells'):
-            return False
-        for cell in self.cells:
-            if cell in other.cells:
-                return True
-        else:
-            return False
+def cell_range(upper_left, lower_right):
+    """Given two Cell objects, return all the Cell objects
+    comprised in the rectangle formed by those two"""
+    for i in range(upper_left.row, lower_right.row + 1):
+        for j in range(upper_left.column, lower_right.column + 1):
+            yield(Cell(i, j))
 
 
 class Cell(object):
     """A cell is recognized by a pair of 0 based coordinates (r,c)
-    denoting respectively its row and its column"""
-    def __init__(self, row, column):
+    denoting respectively its row and its column, and an ingredient"""
+    def __init__(self, row=0, column=0, ingredient=None):
         self.row = row
         self.column = column
+        self.ingredient = ingredient
 
-    def neighbours(self, R, C):
-        """A cell has at most 4 adjacent cells; we don't count diagonals.
-        R is the number of rows in the rectangle containing the cell,
-        anc C is the number of columns"""
+    def neighbours(self, pizza):
+        """A cell has at most 4 adjacent cells; we don't count diagonals"""
         neighbours = []
-        if self.row+1 < R:
+        if self.row+1 < pizza.rows:
             neighbours.append(Cell(self.row+1, self.column))
         if self.row-1 >= 0:
             neighbours.append(Cell(self.row-1, self.column))
-        if self.column+1 < C:
+        if self.column+1 < pizza.columns:
             neighbours.append(Cell(self.row, self.column+1))
-        if self.column-1 < C:
+        if self.column-1 >= 0:
             neighbours.append(Cell(self.row, self.column-1))
         return neighbours
 
     def __repr__(self):
-        return '<Cell ({0}, {1})>'.format(self.row, self.column)
+        return '<Cell ({0}, {1}) contains {2}>'.format(
+            self.row, self.column, self.ingredient
+            )
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        if not hasattr(other, 'row') and not hasattr(other, 'column'):
+            return False
+        return self.row == other.row and self.column == other.column
 
     def __gt__(self, other):
+        if not hasattr(other, 'row') and not hasattr(other, 'column'):
+            return False
         return (
             self.row > other.row or
             self.row == other.row and self.column > other.column
             )
 
     def __lt__(self, other):
+        if not hasattr(other, 'row') and not hasattr(other, 'column'):
+            return False
         return (
             self.row < other.row or
             self.row == other.row and self.column < other.column
             )
 
     def __add__(self, other):
+        if not hasattr(other, 'row') and not hasattr(other, 'column'):
+            return False
         return self.__class__(self.row+other.row, self.column+other.column)
 
     def __sub__(self, other):
+        if not hasattr(other, 'row') and not hasattr(other, 'column'):
+            return False
         if self.row-other.row < 0 or self.column-other.column < 0:
-            raise StopIteration("This went too far. Your cell is off any grid")
+            raise StopIteration("This went too far. Your cell is off grid")
         return self.__class__(self.row-other.row, self.column-other.column)
-
-
-class Ingredient(object):
-    """An ingredient has a count in a Pizza, and occupies cells (or not?)"""
-    def __init__(self, count, cells):
-        self.count = count
-        self.cells = cells
-
-    def __repr__(self):
-        return '<Ingredient {0}>'.format(self.cells)
 
 
 class Pizza(object):
     """A pizza is represented by a RxC rectangle; each cell of the pizza
     contains either a mushroom or a tomato"""
-    def __init__(self, **kwargs):
-        if kwargs.get('data'):  # kwargs['data'] is the filepath to the dataset
+    def __init__(self, rows=0, columns=0, tomatoes=[], mushrooms=[], **kwargs):
+        """"rows" and "columns" are integers in range(1, 1001);
+        "tomatoes" and mushrooms" are arrays of Cell objects
+        """
+        self.rows = rows
+        self.columns = columns
+        self.tomatoes = tomatoes
+        self.mushrooms = mushrooms
+        if kwargs.get('data'):
+            # kwargs['data']: filepath to a dataset representing the pizza
             with open(kwargs['data']) as infile:
                 lines = infile.readlines()
                 self.rows, self.columns, self.L, self.H = [
                     int(i) for i in lines[0].rstrip('\n').split()
                     ]
                 r = 0
-                t = 0
-                m = 0
-                t_pos = []
-                m_pos = []
                 for line in lines[1:]:
                     line = line.rstrip('\n')
-                    t += line.count('T')
-                    m += line.count('M')
                     for i in range(len(line)):
                         if line[i] == 'T':
-                            t_pos.append(Cell(r, i))
+                            self.tomatoes.append(Cell(r, i, 'T'))
                         else:
-                            m_pos.append(Cell(r, i))
+                            self.mushrooms.append(Cell(r, i, 'M'))
                     r += 1
-                self.tomatoes = Ingredient(t, t_pos)
-                self.mushrooms = Ingredient(m, m_pos)
-        else:
-            for i, j in kwargs.items():
-                if i != 'data':
-                    vars(self)[i] = j
 
     def __repr__(self):
         return '<Pizza {r}x{c} T={t} M={m}>'.format(
             r=self.rows, c=self.columns,
-            t=self.tomatoes.count, m=self.mushrooms.count
+            t=len(self.tomatoes), m=len(self.mushrooms)
             )
 
     def __contains__(self, item):
@@ -180,18 +124,18 @@ class Pizza(object):
 
     @property
     def cells(self):
-        for r in range(self.rows):
-            for c in range(self.columns):
-                yield Cell(r, c)
+        t = sorted(self.tomatoes)
+        m = sorted(self.mushrooms)
+        return sorted(t+m)
 
-    @staticmethod
-    def slices_sizes(R, C, L, H):
-        """Given the surface of the biggest slices possible in a pizza,
-        and the minimum number of each ingredient in a slice,
+    @property
+    def sizes_of_slices(self):
+        """Given the surface of the biggest slices possible in a pizza (H),
+        and the minimum number of each ingredient in a slice (L),
         we determine the possible numbers of rows and columns any valid slice
         need"""
         result = collections.OrderedDict()
-        for h in reversed(range(2*L, H+1)):
+        for h in reversed(range(2*self.L, self.H+1)):
             bar = []
             i = 1
             while i <= math.sqrt(h):  # we list all the divisors of self.H
@@ -203,28 +147,42 @@ class Pizza(object):
                 i += 1
             bar = sorted(bar, key=lambda x: x[0], reverse=True)
             bar = filter(
-                lambda x: x[0] <= R and x[1] <= C,
+                lambda x: x[0] <= self.rows and x[1] <= self.columns,
                 bar
                 )
             result[h] = [[int(r), int(c)] for r, c in bar]
         return result
 
-    def slice(self, start, rows, columns):
-        """slice pizza from start according to
-        a number of rows and number of columns
-        """
+    def slice(self, rows, columns):
+        """get valid slices in a pizza: starting from the upper left cell,
+        so that each valid slice contains rows*columns cells"""
+        start = sorted(list(self.cells))[0]
         upper_left = start
         lower_right = upper_left + Cell(rows-1, columns-1)
         result = []
-        s = Slice(upper_left, lower_right, self)
+        slice = Pizza(
+            rows=rows,
+            columns=columns,
+            tomatoes=list(
+                filter(
+                    lambda x: x in cell_range(upper_left, lower_right),
+                    self.tomatoes
+                    )
+                ),
+            mushrooms=list(
+                filter(
+                    lambda x: x in cell_range(upper_left, lower_right),
+                    self.mushrooms
+                    )
+                )
+            )
         while lower_right in self:
             # check if surface covered is a valid slice
-            t = s.tomatoes.count
-            m = s.mushrooms.count
+            t = len(slice.tomatoes)
+            m = len(slice.mushrooms)
             if t >= self.L and m >= self.L and t+m <= self.H:
                 # slice is valid, store it
-                result.append(s)
-
+                result.append(slice)
             if self.rows-lower_right.row-1 >= rows:
                 upper_left += Cell(lower_right.row+1, 0)
             else:
@@ -233,14 +191,29 @@ class Pizza(object):
                 break
             else:
                 lower_right = upper_left + Cell(rows-1, columns-1)
-                s = Slice(upper_left, lower_right, self)
+                slice = Pizza(
+                    rows=rows,
+                    columns=columns,
+                    tomatoes=list(
+                        filter(
+                            lambda x: x in cell_range(upper_left, lower_right),
+                            self.tomatoes
+                            )
+                        ),
+                    mushrooms=list(
+                        filter(
+                            lambda x: x in cell_range(upper_left, lower_right),
+                            self.mushrooms
+                            )
+                        )
+                    )
         return result
 
     def getslices(self):
         """Going through all possible dimensions of a valid slice,
         starting from the biggest, we keep non overlapping slices"""
         result = [None]
-        slices_sizes = self.slices_sizes(
+        slices_sizes = self.sizes_of_slices(
             self.rows, self.columns, self.L, self.H
             )
         for key, values in slices_sizes.items():
