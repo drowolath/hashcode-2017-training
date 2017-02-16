@@ -153,6 +153,19 @@ class Pizza(object):
             result[h] = [[int(r), int(c)] for r, c in bar]
         return result
 
+    @property
+    def is_divisible(self):
+        """Verifies if we can get more than one valid slice in the pizza"""
+        t = len(self.tomatoes)
+        m = len(self.mushrooms)
+        return (t >= 2*self.L and m >= 2*self.L)
+
+    def overlaps(self, other):
+        """Verifies if (part of) the pizza overlaps another one"""
+        if not hasattr(other, 'cells'):
+            return False
+        return bool([i for i in self.cells if i in other.cells])
+
     def slice(self, rows, columns):
         """get valid slices in a pizza: starting from the upper left cell,
         so that each valid slice contains rows*columns cells"""
@@ -176,6 +189,8 @@ class Pizza(object):
                     )
                 )
             )
+        slice.L = self.L
+        slice.H = rows*columns
         while lower_right in self:
             # check if surface covered is a valid slice
             t = len(slice.tomatoes)
@@ -207,19 +222,19 @@ class Pizza(object):
                             )
                         )
                     )
+                slice.L = self.L
+                slice.H = rows*columns
         return result
 
     def getslices(self):
         """Going through all possible dimensions of a valid slice,
         starting from the biggest, we keep non overlapping slices"""
         result = [None]
-        slices_sizes = self.sizes_of_slices(
-            self.rows, self.columns, self.L, self.H
-            )
-        for key, values in slices_sizes.items():
+        part_result = []
+        for key, values in self.sizes_of_slices.items():
             foo = []
             for rows, columns in values:
-                bar = self.slice(Cell(0, 0), rows, columns)
+                bar = self.slice(rows, columns)
                 count = []
                 for i in bar:
                     for j in result:
@@ -248,18 +263,9 @@ class Pizza(object):
             # accordingly
             for slice in result:
                 if slice.is_divisible:
-                    print('found a divisible slice')
-                    surface = len(list(slice.cells))
-                    p = Pizza(
-                        rows=slice.rows,
-                        columns=slice.columns,
-                        H=surface-1,
-                        L=self.L,
-                        tomatoes=Ingredient(
-                            len(slice.tomatoes.cells), slice.tomatoes.cells),
-                        mushrooms=Ingredient(
-                            len(slice.mushrooms.cells), slice.mushrooms.cells)
-                        )
-                    print(p)
+                    result.remove(slice)
+                    slice.H = len(list(slice.cells)) - 1
+                    part_result = slice.getslices()
+        result += part_result
         return result
 # EOF
