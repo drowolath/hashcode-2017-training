@@ -268,4 +268,7 @@ class Pizza(object):
                     part_result = slice.getslices()
         result += part_result
         return result
+        
+
+    
 # EOF
