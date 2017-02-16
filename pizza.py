@@ -153,19 +153,6 @@ class Pizza(object):
             result[h] = [[int(r), int(c)] for r, c in bar]
         return result
 
-    @property
-    def is_divisible(self):
-        """Verifies if we can get more than one valid slice in the pizza"""
-        t = len(self.tomatoes)
-        m = len(self.mushrooms)
-        return (t >= 2*self.L and m >= 2*self.L)
-
-    def overlaps(self, other):
-        """Verifies if (part of) the pizza overlaps another one"""
-        if not hasattr(other, 'cells'):
-            return False
-        return bool([i for i in self.cells if i in other.cells])
-
     def slice(self, rows, columns):
         """get valid slices in a pizza: starting from the upper left cell,
         so that each valid slice contains rows*columns cells"""
@@ -173,7 +160,7 @@ class Pizza(object):
         upper_left = start
         lower_right = upper_left + Cell(rows-1, columns-1)
         result = []
-        slice = Pizza(
+        slice = Slice(
             rows=rows,
             columns=columns,
             tomatoes=list(
@@ -206,7 +193,7 @@ class Pizza(object):
                 break
             else:
                 lower_right = upper_left + Cell(rows-1, columns-1)
-                slice = Pizza(
+                slice = Slice(
                     rows=rows,
                     columns=columns,
                     tomatoes=list(
@@ -268,7 +255,25 @@ class Pizza(object):
                     part_result = slice.getslices()
         result += part_result
         return result
-        
 
+
+class Slice(Pizza):
+    def __repr__(self):
+        return '<Slice {r}x{c} T={t} M={m}>'.format(
+            r=self.rows, c=self.columns,
+            t=len(self.tomatoes), m=len(self.mushrooms)
+            )
     
+    @property
+    def is_divisible(self):
+        """Verifies if we can get more than one valid slice in the pizza"""
+        t = len(self.tomatoes)
+        m = len(self.mushrooms)
+        return (t >= 2*self.L and m >= 2*self.L)
+
+    def overlaps(self, other):
+        """Verifies if (part of) the pizza overlaps another one"""
+        if not hasattr(other, 'cells'):
+            return False
+        return bool([i for i in self.cells if i in other.cells])
 # EOF
