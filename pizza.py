@@ -7,8 +7,8 @@ maximizing the total number of cells in all slices
 """
 
 import collections
-import itertools
 import math
+
 
 __all__ = [
     'Cell',
@@ -33,18 +33,45 @@ class Cell(object):
         self.column = column
         self.ingredient = ingredient
 
-    def neighbours(self, pizza):
+    def neighbours(self, pizza, direction='all'):
         """A cell has at most 4 adjacent cells; we don't count diagonals"""
         neighbours = []
         if self.row+1 < pizza.rows:
             neighbours.append(Cell(self.row+1, self.column))
+            if direction == 'down':
+                cell = [
+                    i for i in pizza.cells
+                    if i == Cell(self.row+1, self.column)
+                    ][0]
+                return cell
         if self.row-1 >= 0:
             neighbours.append(Cell(self.row-1, self.column))
+            if direction == 'up':
+                cell = [
+                    i for i in pizza.cells
+                    if i == Cell(self.row-1, self.column)
+                    ][0]
+                return cell
         if self.column+1 < pizza.columns:
             neighbours.append(Cell(self.row, self.column+1))
+            if direction == 'right':
+                cell = [
+                    i for i in pizza.cells
+                    if i == Cell(self.row, self.column+1)
+                    ][0]
+                return cell
         if self.column-1 >= 0:
             neighbours.append(Cell(self.row, self.column-1))
-        return neighbours
+            if direction == 'left':
+                cell = [
+                    i for i in pizza.cells
+                    if i == Cell(self.row, self.column-1)
+                    ][0]
+                return cell
+        if direction == 'all':
+            return neighbours
+        else:
+            return None
 
     def __repr__(self):
         return '<Cell ({0}, {1}) contains {2}>'.format(
@@ -88,16 +115,14 @@ class Cell(object):
 class Pizza(object):
     """A pizza is represented by a RxC rectangle; each cell of the pizza
     contains either a mushroom or a tomato"""
-    def __init__(self, rows=0, columns=0, tomatoes=[], mushrooms=[], **kwargs):
+    def __init__(self, **kwargs):
         """"rows" and "columns" are integers in range(1, 1001);
         "tomatoes" and mushrooms" are arrays of Cell objects
         """
-        self.rows = rows
-        self.columns = columns
-        self.tomatoes = tomatoes
-        self.mushrooms = mushrooms
         if kwargs.get('data'):
             # kwargs['data']: filepath to a dataset representing the pizza
+            self.tomatoes = []
+            self.mushrooms = []
             with open(kwargs['data']) as infile:
                 lines = infile.readlines()
                 self.rows, self.columns, self.L, self.H = [
@@ -112,6 +137,10 @@ class Pizza(object):
                         else:
                             self.mushrooms.append(Cell(r, i, 'M'))
                     r += 1
+        else:
+            for key, value in kwargs.items():
+                if key != 'data':
+                    vars(self)[key] = value
 
     def __repr__(self):
         return '<Pizza {r}x{c} T={t} M={m}>'.format(
@@ -161,20 +190,22 @@ class Pizza(object):
         lower_right = upper_left + Cell(rows-1, columns-1)
         result = []
         slice = Slice(
-            rows=rows,
-            columns=columns,
-            tomatoes=list(
-                filter(
-                    lambda x: x in cell_range(upper_left, lower_right),
-                    self.tomatoes
+            {
+                'rows': rows,
+                'columns': columns,
+                'tomatoes': list(
+                    filter(
+                        lambda x: x in cell_range(upper_left, lower_right),
+                        self.tomatoes
+                        )
+                    ),
+                'mushrooms': list(
+                    filter(
+                        lambda x: x in cell_range(upper_left, lower_right),
+                        self.mushrooms
+                        )
                     )
-                ),
-            mushrooms=list(
-                filter(
-                    lambda x: x in cell_range(upper_left, lower_right),
-                    self.mushrooms
-                    )
-                )
+                }
             )
         slice.L = self.L
         slice.H = rows*columns
@@ -194,20 +225,24 @@ class Pizza(object):
             else:
                 lower_right = upper_left + Cell(rows-1, columns-1)
                 slice = Slice(
-                    rows=rows,
-                    columns=columns,
-                    tomatoes=list(
-                        filter(
-                            lambda x: x in cell_range(upper_left, lower_right),
-                            self.tomatoes
+                    {
+                        'rows': rows,
+                        'columns': columns,
+                        'tomatoes': list(
+                            filter(
+                                lambda x: x in cell_range(
+                                    upper_left, lower_right),
+                                self.tomatoes
+                                )
+                            ),
+                        'mushrooms': list(
+                            filter(
+                                lambda x: x in cell_range(
+                                    upper_left, lower_right),
+                                self.mushrooms
+                                )
                             )
-                        ),
-                    mushrooms=list(
-                        filter(
-                            lambda x: x in cell_range(upper_left, lower_right),
-                            self.mushrooms
-                            )
-                        )
+                        }
                     )
                 slice.L = self.L
                 slice.H = rows*columns
@@ -253,7 +288,7 @@ class Pizza(object):
                     result.remove(slice)
                     slice.H = len(list(slice.cells)) - 1
                     part_result = slice.getslices()
-        result += part_result
+            result += part_result
         return result
 
 
@@ -263,7 +298,15 @@ class Slice(Pizza):
             r=self.rows, c=self.columns,
             t=len(self.tomatoes), m=len(self.mushrooms)
             )
-    
+
+    @property
+    def upper_left(self):
+        return self.cells[0]
+
+    @property
+    def lower_right(self):
+        return self.cells[-1]
+
     @property
     def is_divisible(self):
         """Verifies if we can get more than one valid slice in the pizza"""
@@ -271,9 +314,196 @@ class Slice(Pizza):
         m = len(self.mushrooms)
         return (t >= 2*self.L and m >= 2*self.L)
 
+    @property
+    def left_edge(self):
+        cell = self.upper_left
+        r = 1
+        yield cell
+        while r < self.rows:
+            cell += Cell(1, 0)
+            r += 1
+            yield [i for i in self.cells if i == cell][0]
+
+    @property
+    def down_edge(self):
+        cell = self.lower_right
+        c = 1
+        yield cell
+        while c < self.columns:
+            cell -= Cell(0, 1)
+            c += 1
+            yield [i for i in self.cells if i == cell][0]
+
+    @property
+    def right_edge(self):
+        cell = self.lower_right
+        r = 1
+        yield cell
+        while r < self.rows:
+            cell -= Cell(1, 0)
+            r += 1
+            yield [i for i in self.cells if i == cell][0]
+
+    @property
+    def up_edge(self):
+        cell = self.upper_left
+        c = 1
+        yield cell
+        while c < self.columns:
+            cell += Cell(0, 1)
+            c += 1
+            yield [i for i in self.cells if i == cell][0]
+
     def overlaps(self, other):
         """Verifies if (part of) the pizza overlaps another one"""
         if not hasattr(other, 'cells'):
             return False
         return bool([i for i in self.cells if i in other.cells])
+
+
+def execute(filepath):
+    p = None
+    p = Pizza(data=filepath)
+    slices = p.getslices()
+    cells_in_slices = []
+    for slice in slices:
+        for cell in slice.cells:
+            cells_in_slices.append(cell)
+    cells_in_slices = sorted(cells_in_slices)
+    for slice in slices:
+        if slice.rows*slice.columns == p.H:
+            pass
+        else:
+            # We'll try to expand the slice to it's maximum.
+            print(slice.cells)
+            left = True
+            down = True
+            right = True
+            up = True
+            while left or down or right or up:
+                if left:
+                    neighbours = []
+                    for _ in slice.left_edge:
+                        cell = _.neighbours(p, direction='left')
+                        if cell:
+                            neighbours.append(cell)
+                    overlapping = []
+                    for cell in neighbours:
+                        if cell in cells_in_slices:
+                            overlapping.append(cell)
+                    if overlapping or not neighbours:
+                        # if at least one neighbouring cell on the left
+                        # is already part of another slice, we block direction
+                        left = False
+                    else:
+                        # expand the slice on the left
+                        if slice.rows*(slice.columns+1) > p.H:
+                            left = False
+                        else:
+                            slice.columns += 1
+                            slice.tomatoes += [
+                                i for i in neighbours
+                                if i.ingredient == 'T'
+                                ]
+                            slice.mushrooms += [
+                                i for i in neighbours
+                                if i.ingredient == 'M'
+                                ]
+                            cells_in_slices += neighbours
+                            print("<-")
+                            print(slice.cells)
+                if down:
+                    neighbours = []
+                    for _ in slice.down_edge:
+                        cell = _.neighbours(p, direction='down')
+                        if cell:
+                            neighbours.append(cell)
+                    overlapping = []
+                    for cell in neighbours:
+                        if cell in cells_in_slices:
+                            overlapping.append(cell)
+                    if overlapping or not neighbours:
+                        # if at least one neighbouring cell on the down side
+                        # is already part of another slice, we block direction
+                        down = False
+                    else:
+                        # expand the slice on the down side
+                        if (slice.rows+1)*slice.columns > p.H:
+                            down = False
+                        else:
+                            slice.rows += 1
+                            slice.tomatoes += [
+                                i for i in neighbours
+                                if i.ingredient == 'T'
+                                ]
+                            slice.mushrooms += [
+                                i for i in neighbours
+                                if i.ingredient == 'M'
+                                ]
+                            cells_in_slices += neighbours
+                            print("v")
+                            print(slice.cells)
+                if right:
+                    neighbours = []
+                    for _ in slice.right_edge:
+                        cell = _.neighbours(p, direction='right')
+                        if cell:
+                            neighbours.append(cell)
+                    overlapping = []
+                    for cell in neighbours:
+                        if cell in cells_in_slices:
+                            overlapping.append(cell)
+                    if overlapping or not neighbours:
+                        # if at least one neighbouring cell on the right
+                        # is already part of another slice, we block direction
+                        right = False
+                    else:
+                        # expand the slice on the right
+                        if slice.rows*(slice.columns+1) > p.H:
+                            right = False
+                        else:
+                            slice.columns += 1
+                            slice.tomatoes += [
+                                i for i in neighbours
+                                if i.ingredient == 'T'
+                                ]
+                            slice.mushrooms += [
+                                i for i in neighbours
+                                if i.ingredient == 'M'
+                                ]
+                            cells_in_slices += neighbours
+                            print("->")
+                            print(slice.cells)
+                if up:
+                    neighbours = []
+                    for _ in slice.up_edge:
+                        cell = _.neighbours(p, direction='up')
+                        if cell:
+                            neighbours.append(cell)
+                    overlapping = []
+                    for cell in neighbours:
+                        if cell in cells_in_slices:
+                            overlapping.append(cell)
+                    if overlapping or not neighbours:
+                        # if at least one neighbouring cell on the up side
+                        # is already part of another slice, we block direction
+                        up = False
+                    else:
+                        # expand the slice on the up side
+                        if (slice.rows+1)*slice.columns > p.H:
+                            up = False
+                        else:
+                            slice.rows += 1
+                            slice.tomatoes += [
+                                i for i in neighbours
+                                if i.ingredient == 'T'
+                                ]
+                            slice.mushrooms += [
+                                i for i in neighbours
+                                if i.ingredient == 'M'
+                                ]
+                            cells_in_slices += neighbours
+                            print("^")
+                            print(slice.cells)
+            print('\n')
 # EOF
