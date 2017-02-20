@@ -91,6 +91,7 @@ Very straightforward:
 .. code-block:: python
 
    >>> import pizza
-   >>> p = pizza.Pizza(data='/filepath/to/dataset')
-   >>> p.slices  # should return the maximized valid slices
-   >>> p.elementary_slices  # returns the valid elementary slices of the pizza
+   >>> p = pizza.Pizza.readfromfile('/filepath/to/dataset')
+   >>> p.getslices()  # returns the max number of valid slices
+
+   >>> pizza.execute('/filepath/to/dataset')  # returns the maximized valid slices

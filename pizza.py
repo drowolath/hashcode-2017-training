@@ -112,35 +112,17 @@ class Cell(object):
         return self.__class__(self.row-other.row, self.column-other.column)
 
 
-class Pizza(object):
+class Pizza:
     """A pizza is represented by a RxC rectangle; each cell of the pizza
     contains either a mushroom or a tomato"""
-    def __init__(self, **kwargs):
+    def __init__(self, rows, columns, tomatoes, mushrooms):
         """"rows" and "columns" are integers in range(1, 1001);
         "tomatoes" and mushrooms" are arrays of Cell objects
         """
-        if kwargs.get('data'):
-            # kwargs['data']: filepath to a dataset representing the pizza
-            self.tomatoes = []
-            self.mushrooms = []
-            with open(kwargs['data']) as infile:
-                lines = infile.readlines()
-                self.rows, self.columns, self.L, self.H = [
-                    int(i) for i in lines[0].rstrip('\n').split()
-                    ]
-                r = 0
-                for line in lines[1:]:
-                    line = line.rstrip('\n')
-                    for i in range(len(line)):
-                        if line[i] == 'T':
-                            self.tomatoes.append(Cell(r, i, 'T'))
-                        else:
-                            self.mushrooms.append(Cell(r, i, 'M'))
-                    r += 1
-        else:
-            for key, value in kwargs.items():
-                if key != 'data':
-                    vars(self)[key] = value
+        self.rows = rows
+        self.columns = columns
+        self.tomatoes = tomatoes
+        self.mushrooms = mushrooms
 
     def __repr__(self):
         return '<Pizza {r}x{c} T={t} M={m}>'.format(
@@ -150,6 +132,29 @@ class Pizza(object):
 
     def __contains__(self, item):
         return item in self.cells
+
+    @staticmethod
+    def readfromfile(filepath):
+        tomatoes = []
+        mushrooms = []
+        with open(filepath) as infile:
+            lines = infile.readlines()
+            rows, columns, L, H = [
+                int(i) for i in lines[0].rstrip('\n').split()
+                ]
+            r = 0
+            for line in lines[1:]:
+                line = line.rstrip('\n')
+                for i in range(len(line)):
+                    if line[i] == 'T':
+                        tomatoes.append(Cell(r, i, 'T'))
+                    else:
+                        mushrooms.append(Cell(r, i, 'M'))
+                r += 1
+        p = Pizza(rows, columns, tomatoes, mushrooms)
+        p.L = L
+        p.H = H
+        return p
 
     @property
     def cells(self):
@@ -190,22 +195,20 @@ class Pizza(object):
         lower_right = upper_left + Cell(rows-1, columns-1)
         result = []
         slice = Slice(
-            {
-                'rows': rows,
-                'columns': columns,
-                'tomatoes': list(
-                    filter(
-                        lambda x: x in cell_range(upper_left, lower_right),
-                        self.tomatoes
-                        )
-                    ),
-                'mushrooms': list(
-                    filter(
-                        lambda x: x in cell_range(upper_left, lower_right),
-                        self.mushrooms
-                        )
+            rows,
+            columns,
+            list(
+                filter(
+                    lambda x: x in cell_range(upper_left, lower_right),
+                    self.tomatoes
                     )
-                }
+                ),
+            list(
+                filter(
+                    lambda x: x in cell_range(upper_left, lower_right),
+                    self.mushrooms
+                    )
+                )
             )
         slice.L = self.L
         slice.H = rows*columns
@@ -225,24 +228,20 @@ class Pizza(object):
             else:
                 lower_right = upper_left + Cell(rows-1, columns-1)
                 slice = Slice(
-                    {
-                        'rows': rows,
-                        'columns': columns,
-                        'tomatoes': list(
-                            filter(
-                                lambda x: x in cell_range(
-                                    upper_left, lower_right),
-                                self.tomatoes
-                                )
-                            ),
-                        'mushrooms': list(
-                            filter(
-                                lambda x: x in cell_range(
-                                    upper_left, lower_right),
-                                self.mushrooms
-                                )
+                    rows,
+                    columns,
+                    list(
+                        filter(
+                            lambda x: x in cell_range(upper_left, lower_right),
+                            self.tomatoes
                             )
-                        }
+                        ),
+                    list(
+                        filter(
+                            lambda x: x in cell_range(upper_left, lower_right),
+                            self.mushrooms
+                            )
+                        )
                     )
                 slice.L = self.L
                 slice.H = rows*columns
@@ -363,8 +362,10 @@ class Slice(Pizza):
 
 def execute(filepath):
     p = None
-    p = Pizza(data=filepath)
+    p = Pizza.readfromfile(filepath)
     slices = p.getslices()
+    # this already contains the max number of valid slices
+    result = []
     cells_in_slices = []
     for slice in slices:
         for cell in slice.cells:
@@ -372,10 +373,9 @@ def execute(filepath):
     cells_in_slices = sorted(cells_in_slices)
     for slice in slices:
         if slice.rows*slice.columns == p.H:
-            pass
+            result.append(slice)
         else:
             # We'll try to expand the slice to it's maximum.
-            print(slice.cells)
             left = True
             down = True
             right = True
@@ -410,8 +410,6 @@ def execute(filepath):
                                 if i.ingredient == 'M'
                                 ]
                             cells_in_slices += neighbours
-                            print("<-")
-                            print(slice.cells)
                 if down:
                     neighbours = []
                     for _ in slice.down_edge:
@@ -441,8 +439,6 @@ def execute(filepath):
                                 if i.ingredient == 'M'
                                 ]
                             cells_in_slices += neighbours
-                            print("v")
-                            print(slice.cells)
                 if right:
                     neighbours = []
                     for _ in slice.right_edge:
@@ -472,8 +468,6 @@ def execute(filepath):
                                 if i.ingredient == 'M'
                                 ]
                             cells_in_slices += neighbours
-                            print("->")
-                            print(slice.cells)
                 if up:
                     neighbours = []
                     for _ in slice.up_edge:
@@ -503,7 +497,16 @@ def execute(filepath):
                                 if i.ingredient == 'M'
                                 ]
                             cells_in_slices += neighbours
-                            print("^")
-                            print(slice.cells)
-            print('\n')
+            result.append(slice)
+    answer = '{}\n'.format(len(result))
+    for slice in result:
+        answer += '{up_row} {left_column} {down_row} {right_column}\n'.format(
+            up_row=slice.upper_left.row,
+            down_row=slice.lower_right.row,
+            left_column=slice.upper_left.column,
+            right_column=slice.lower_right.column
+            )
+    print(answer)
+    with open('/tmp/pizza_answer', 'w') as f:
+        f.write(answer)
 # EOF
