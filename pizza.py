@@ -8,6 +8,7 @@ maximizing the total number of cells in all slices
 
 import collections
 import math
+import sys
 
 
 __all__ = [
@@ -509,4 +510,7 @@ def execute(filepath):
     print(answer)
     with open('/tmp/pizza_answer', 'w') as f:
         f.write(answer)
+
+if __name__ == '__main__':
+    execute(sys.argv[1])
 # EOF
